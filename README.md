@@ -52,6 +52,8 @@ teleport_token_path: "/var/lib/teleport/tmp"
 teleport_server_cert_dir: "/var/lib/teleport/certificates"
 teleport_server_domain: your.domain.name
 teleport_server_port: 443
+# need to delegate tasks of issuing certs to your ansible teleport host
+teleport_server_name: your_teleport_ansible_hostname
 
 # PostgreSQL values
 teleport_postgresql_cert_name: "psql"
