@@ -1,0 +1,58 @@
+teleport:
+  data_dir: /var/lib/teleport-db
+  nodename: {{ ansible_nodename }}
+  auth_token: "{{ teleport_token_path }}/token"
+  auth_servers:
+    - {{ teleport_server_domain }}:{{ teleport_server_port }}
+  log:
+    output: /var/log/teleport/teleport.log
+    severity: INFO
+    format:
+      output: json
+ssh_service:
+  enabled: "yes"
+  labels:
+{% for key in teleport_labels %}
+    {{ key }}: {{ teleport_labels[key] }}
+{% endfor %}
+  commands:
+  - name: hostname
+    command: [hostname]
+    period: 1m0s
+db_service:
+  enabled: "yes"
+  databases:
+{% if 'mysql' in group_names %}
+  - name: "{{ ansible_nodename | replace('-psql','') }}"
+    description: "{{ ansible_nodename }} {{ ansible_default_ipv4.address }}"
+    protocol: "mysql"
+    uri: "{{ ansible_nodename }}:3306"
+    static_labels:
+{% for key in teleport_labels %}
+      {{ key }}: {{ teleport_labels[key] | replace('psql','') | replace(',','')}}
+{% endfor %}
+{% endif %}
+{% if 'psql' in group_names %}
+  - name: "{{ ansible_nodename | replace('-mysql','') }}"
+    description: "{{ ansible_nodename }} {{ ansible_default_ipv4.address }}"
+    protocol: "postgres"
+    uri: "{{ ansible_nodename }}:5432"
+    static_labels:
+{% for key in teleport_labels %}
+      {{ key }}: {{ teleport_labels[key] | replace('mysql','') | replace(',','') }}
+{% endfor %}
+{% endif %}
+{% if 'mongo' in group_names %}
+  - name: "{{ ansible_nodename }}"
+    description: "{{ ansible_nodename }} {{ ansible_default_ipv4.address }}"
+    protocol: "mongodb"
+    uri: "mongodb://{{ ansible_default_ipv4.address }}:27017"
+    static_labels:
+{% for key in teleport_labels %}
+      {{ key }}: {{ teleport_labels[key] }}
+{% endfor %}
+{% endif %}
+auth_service:
+  enabled: "no"
+proxy_service:
+  enabled: "no"

@@ -1,0 +1,93 @@
+teleport:
+  nodename: {{ ansible_nodename }}
+  data_dir: /var/lib/teleport
+  log:
+    output: /var/log/teleport/teleport.log
+    severity: INFO
+    # Log format configuration
+    # Possible output values are 'json' and 'text' (default).
+    # Possible extra_fields values include: timestamp, component, caller, and level.
+    # All extra fields are included by default.
+    format:
+      output: json
+      extra_fields: [level, timestamp, component, caller]
+  ca_pin: ""
+  diag_addr: 172.23.0.138:3000
+auth_service:
+  enabled: "yes"
+  listen_addr: 0.0.0.0:3025
+  cluster_name: "{{ teleport_domain }}"
+  authentication:
+    type: local
+    second_factor: on
+    webauthn:
+      rp_id: "{{ teleport_domain }}"
+    u2f:
+      app_id: "https://{{ teleport_domain }}"
+ssh_service:
+  enabled: "yes"
+  labels:
+{% for key in teleport_labels %}
+      {{ key }}: {{ teleport_labels[key] }}
+{% endfor %}
+  enhanced_recording:
+    enabled: "yes"
+    command_buffer_size: 8
+    disk_buffer_size: 128
+    network_buffer_size: 8
+  commands:
+  - name: hostname
+    command: [hostname]
+    period: 1m0s
+proxy_service:
+  enabled: "yes"
+  listen_addr: 0.0.0.0:3023
+  web_listen_addr: 0.0.0.0:443
+  public_addr: "{{ teleport_domain }}:443"
+  mysql_listen_addr: "0.0.0.0:3036"
+  kube_listen_addr: 0.0.0.0:3026
+    #  kube_listen_addr: 0.0.0.0:3026
+    #  https_cert_file: /var/lib/teleport/certificates/fullchain.pem
+    #  https_key_file: /var/lib/teleport/certificates/privkey.pem
+  acme:
+    enabled: "yes"
+    email: alexey.pashkin@ailet.com
+db_service:
+  enabled: "no"
+app_service:
+  enabled: "yes"
+  debug_app: false
+  apps:
+  - name: 'grafana'
+    uri: https://grafana.ailet.dev/
+    public_addr: ""
+    insecure_skip_verify: false
+    rewrite:
+      headers:
+      - "X-JWT-Assertion: {{ '{{' }} internal.jwt {{ '}}' }}"
+    labels:
+      product: grafana
+      env: prod
+      zone: spb5
+      type: app
+  - name: 'pwd'
+    uri: https://pwd.intrtl.com/
+    public_addr: ""
+    insecure_skip_verify: false
+    labels:
+      product: pwd
+      env: prod
+      zone: spb5
+      type: app
+  - name: 'gitlab'
+    uri: https://gitlab.intrtl.com/
+    public_addr: ""
+    insecure_skip_verify: false
+    rewrite:
+      headers:
+      - "X-JWT-Assertion: {{ '{{' }} internal.jwt {{ '}}' }}"
+    labels:
+      product: gitlab
+      env: prod
+      zone: lain
+      type: app

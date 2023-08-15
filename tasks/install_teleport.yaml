@@ -1,0 +1,26 @@
+---
+- name: Install teleport - Add teleport gpg
+  ansible.builtin.apt_key:
+    url: https://deb.releases.teleport.dev/teleport-pubkey.asc
+    id: 0C5E8BA5658E320D1B031179C87ED53A6282C411
+    keyring: /etc/apt/trusted.gpg.d/teleport.gpg
+    state: present
+
+- name: Install teleport - Add repository
+  ansible.builtin.apt_repository:
+    repo: deb https://deb.releases.teleport.dev/ stable main 
+    state: present
+
+- name: Install teleport - Install Teleport from apt_repository
+  apt:
+    name: "teleport={{ teleport_version }}"
+    update_cache: yes
+    state: present
+  notify: 
+    - Restart teleport
+
+- name: Install teleport - Create logrotate config from template
+  template: 
+    src: teleport_logrotate.j2 
+    dest: /etc/logrotate.d/teleport 
+    mode: 0644

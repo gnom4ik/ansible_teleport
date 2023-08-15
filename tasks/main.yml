@@ -1,0 +1,31 @@
+---
+- import_tasks: preparation.yaml
+  tags:
+    - prepare
+    - install
+
+- import_tasks: install_teleport.yaml
+  tags:
+    - install
+    - update
+
+- import_tasks: configure_main_server.yaml
+  tags:
+    - install
+    - configure_teleport_server
+  when: "'teleport-server' in group_names"
+
+- import_tasks: configure_mongo_server.yaml
+  tags:
+    - update_mongodb_certs
+  when: "'mongodb' in group_names"
+
+- import_tasks: configure_mysql_server.yaml
+  when: "'mysql' in group_names"
+  tags:
+    - update_mysql_certs
+
+- import_tasks: configure_postgresql_server.yaml
+  when: "'postgresql' in group_names"
+  tags:
+    - update_psql_certs

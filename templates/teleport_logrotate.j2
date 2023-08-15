@@ -1,0 +1,10 @@
+/var/log/teleport/*.log {
+     daily
+     missingok
+     rotate 31
+     copytruncate
+     delaycompress
+     notifempty
+     compress
+     su root root
+}
