@@ -32,7 +32,7 @@ db_service:
       {{ key }}: {{ teleport_labels[key] | replace('psql','') | replace(',','')}}
 {% endfor %}
 {% endif %}
-{% if 'psql' in group_names %}
+{% if 'postgres' in group_names %}
   - name: "{{ ansible_nodename | replace('-mysql','') }}"
     description: "{{ ansible_nodename }} {{ ansible_default_ipv4.address }}"
     protocol: "postgres"

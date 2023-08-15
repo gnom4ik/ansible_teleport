@@ -3,7 +3,7 @@
   block:
     - name: Configure PostgreSQL Servers - Create local psql certs directory
       file:
-        path: "{{ teleport.postgresql.cert.dir }}"
+        path: "{{ teleport_postgresql_cert_dir }}"
         state: directory
         owner: postgres
         group: postgres
@@ -11,7 +11,7 @@
         
     - name: Configure PostgreSQL Servers - Check the certificate for validity
       community.crypto.x509_certificate_info:
-        path: "{{ teleport.postgresql.cert.dir }}/{{ teleport.postgresql.cert.name }}.crt"
+        path: "{{ teleport_postgresql_cert_dir }}/{{ teleport_postgresql_cert_name }}.crt"
         valid_at:
           two_days: "+2d0h"
       register: cert
@@ -24,11 +24,11 @@
 
     - name: Config Main Server - Create certificate and token directory for PostgreSQL DB Hosts
       ansible.builtin.file:
-        path: "{{ teleport.server.cert.dir }}/{{ ansible_nodename }}"
+        path: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
         mode: '0755'
         state: directory
         recurse: true
-      delegate_to: "{{ teleport.server.name }}"
+      delegate_to: "{{ teleport_server_name }}"
       when: expire_days | default(0) | int <= 14
 
     - name: Config Main Server - Create certificate and token directory for Local Host 
@@ -43,56 +43,56 @@
 
     - name: Configure PostgreSQL Servers - Generate certificates for db 
       ansible.builtin.shell: 
-        cmd: "tctl auth sign --format=db --host={{ ansible_nodename }} --out={{ teleport.postgresql.cert.name }} --ttl={{ teleport.postgresql.cert.ttl }} --overwrite"
-        chdir: "{{ teleport.server.cert.dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport.server.name }}"
+        cmd: "tctl auth sign --format=db --host={{ ansible_nodename }} --out={{ teleport_postgresql_cert_name }} --ttl={{ teleport_postgresql_cert_ttl }} --overwrite"
+        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+      delegate_to: "{{ teleport_server_name }}"
       when: expire_days | default(0) | int <= 14
 
     - name: Configure PostgreSQL Servers - Generate token for db
       ansible.builtin.shell: 
-        cmd: "tctl tokens add --type=node,db --ttl=1h > {{ teleport.postgresql.cert.name }}.txt"
-        chdir: "{{ teleport.server.cert.dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport.server.name }}"
+        cmd: "tctl tokens add --type=node,db --ttl=1h > {{ teleport_postgresql_cert_name }}.txt"
+        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+      delegate_to: "{{ teleport_server_name }}"
       when: expire_days | default(0) | int <= 14
 
     - name: Configure PostgreSQL Servers - Fletching cert files to localhost
       ansible.builtin.fetch:
-        src: "{{ teleport.server.cert.dir }}/{{ ansible_nodename }}/{{ item }}"
+        src: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}/{{ item }}"
         dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/"
         flat: true
       with_items: 
-        - "{{ teleport.postgresql.cert.name }}.cas"
-        - "{{ teleport.postgresql.cert.name }}.crt"
-        - "{{ teleport.postgresql.cert.name }}.key"
-        - "{{ teleport.postgresql.cert.name }}.txt"
-      delegate_to: "{{ teleport.server.name }}"
+        - "{{ teleport_postgresql_cert_name }}.cas"
+        - "{{ teleport_postgresql_cert_name }}.crt"
+        - "{{ teleport_postgresql_cert_name }}.key"
+        - "{{ teleport_postgresql_cert_name }}.txt"
+      delegate_to: "{{ teleport_server_name }}"
       when: expire_days | default(0) | int <= 14
 
     - name: Configure PostgreSQL Servers - copy cert files to DB host
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/{{ item }}"
-        dest: "{{ teleport.postgresql.cert.dir }}"
+        dest: "{{ teleport_postgresql_cert_dir }}"
         owner: postgres
         group: postgres
         mode: '0600'
       with_items: 
-        - "{{ teleport.postgresql.cert.name }}.cas"
-        - "{{ teleport.postgresql.cert.name }}.crt"
-        - "{{ teleport.postgresql.cert.name }}.key"
-        - "{{ teleport.postgresql.cert.name }}.txt"
+        - "{{ teleport_postgresql_cert_name }}.cas"
+        - "{{ teleport_postgresql_cert_name }}.crt"
+        - "{{ teleport_postgresql_cert_name }}.key"
+        - "{{ teleport_postgresql_cert_name }}.txt"
       when: expire_days | default(0) | int <= 14
 
     - name: Configure PostgreSQL Servers - Modify teleport token file as it is needed
       shell: 
-        cmd: cat "{{ teleport.postgresql.cert.name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport.token_path }}/token"
-        chdir: "{{ teleport.postgresql.cert.dir }}"
+        cmd: cat "{{ teleport_postgresql_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport.token_path }}/token"
+        chdir: "{{ teleport_postgresql_cert_dir }}"
       notify: Reload PostgreSQL service
       when: expire_days | default(0) | int <= 14
 
     - name: Configure PostgreSQL Servers - Create teleport config from template
       template: 
         src: teleport_all_db_conf.j2 
-        dest: "{{ teleport.config_path }}/teleport.yaml"
+        dest: "{{ teleport_config_path }}/teleport.yaml"
         mode: 0644
       notify: Restart teleport
 

@@ -1,12 +1,12 @@
 ---
 - name: Prepare - Create teleport certificates directory
   file:
-    path: "{{ teleport.server.cert.dir }}"
+    path: "{{ teleport_server_cert_dir }}"
     state: directory
-  when: "'teleport' in ansible_hostname"
+  when: "'teleport-server' in group_names"
 
 - name: Prepare - Create Teleport token directory
   file:
-    path: "{{ teleport.token_path }}"
+    path: "{{ teleport_token_path }}"
     state: directory
     mode: 0755

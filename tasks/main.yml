@@ -18,7 +18,7 @@
 - import_tasks: configure_mongo_server.yaml
   tags:
     - update_mongodb_certs
-  when: "'mongodb' in group_names"
+  when: "'mongo' in group_names"
 
 - import_tasks: configure_mysql_server.yaml
   when: "'mysql' in group_names"
@@ -26,6 +26,6 @@
     - update_mysql_certs
 
 - import_tasks: configure_postgresql_server.yaml
-  when: "'postgresql' in group_names"
+  when: "'postgres' in group_names"
   tags:
     - update_psql_certs
