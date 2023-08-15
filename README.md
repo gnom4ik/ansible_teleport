@@ -1,14 +1,14 @@
-# What you need to do: 
+# What you need to do:
 
 Clone repo to your ansible roles dir. Repo is ready to include to your own ansible playbooks as submodule.
 
 ```
 cd $your_ansible_dir_with_roles
 mkdir teleport && cd teleport
-git clone https://github.com/gnom4ik/install_teleport.git .
+git clone https://github.com/gnom4ik/ansible_teleport.git .
 ```
 
-## teleport inventory 
+## teleport inventory
 
 ```
 [all]
@@ -35,7 +35,7 @@ mongodb-server
 
 [mysql]
 
-mysql-server	
+mysql-server
 
 [postgresql]
 
@@ -84,7 +84,7 @@ teleport_labels:
   type: test
 ```
 
-## teleport database host vars 
+## teleport database host vars
 
 You can change all labels as you wish.
 
