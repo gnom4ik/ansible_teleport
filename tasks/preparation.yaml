@@ -10,3 +10,9 @@
     path: "{{ teleport_token_path }}"
     state: directory
     mode: 0755
+
+- name: Prepare - Create Teleport logs directory
+  file:
+    path: "{{ teleport_logs_path }}"
+    state: directory
+    mode: 0755

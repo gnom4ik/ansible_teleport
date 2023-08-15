@@ -84,7 +84,7 @@
 
     - name: Configure PostgreSQL Servers - Modify teleport token file as it is needed
       shell: 
-        cmd: cat "{{ teleport_postgresql_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport.token_path }}/token"
+        cmd: cat "{{ teleport_postgresql_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
         chdir: "{{ teleport_postgresql_cert_dir }}"
       notify: Reload PostgreSQL service
       when: expire_days | default(0) | int <= 14
