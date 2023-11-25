@@ -1,95 +1,94 @@
----
 - name: Configure MongoDB Servers - Starting configure mongodb db server
   block:
-    - name: Configure MongoDB Servers - Create local mongodb certs directory
-      file:
-        path: "{{ teleport_mongodb_cert_dir }}"
-        state: directory
-        owner: mongodb
-        group: mongodb
-        mode: '0755'
+  - name: Configure MongoDB Servers - Create local mongodb certs directory
+    file:
+      path: "{{ teleport_mongodb_cert_dir }}"
+      state: directory
+      owner: mongodb
+      group: mongodb
+      mode: '0755'
 
-    - name: Configure MongoDB Servers - Check the certificate for validity
-      community.crypto.x509_certificate_info:
-        path: "{{ teleport_mongodb_cert_dir }}/{{ teleport_mongodb_cert_name }}.crt"
-        valid_at:
-          two_days: "+2d0h"
-      register: cert
-      ignore_errors: true 
+  - name: Configure MongoDB Servers - Check the certificate for validity
+    community.crypto.x509_certificate_info:
+      path: "{{ teleport_mongodb_cert_dir }}/{{ teleport_mongodb_cert_name }}.crt"
+      valid_at:
+        two_days: "+2d0h"
+    register: cert
+    ignore_errors: true
 
-    - name: Configure MongoDB Servers - How many days until cert expires
-      set_fact:
-        expire_days: "{{ (( cert.not_after | to_datetime('%Y%m%d%H%M%SZ')) - (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')) ).days }}"
-      ignore_errors: true 
+  - name: Configure MongoDB Servers - How many days until cert expires
+    set_fact:
+      expire_days: "{{ (( cert.not_after | to_datetime('%Y%m%d%H%M%SZ')) - (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')) ).days }}"
+    ignore_errors: true
 
-    - name: Config Main Server - Create certificate and token directory for MongoDB DB Hosts
-      ansible.builtin.file:
-        path: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-        mode: '0755'
-        state: directory
-        recurse: yes
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Config Main Server - Create certificate and token directory for MongoDB DB Hosts
+    ansible.builtin.file:
+      path: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+      mode: '0755'
+      state: directory
+      recurse: yes
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Config Main Server - Create certificate and token directory for Local Host 
-      ansible.builtin.file:
-        path: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}"
-        mode: '0755'
-        state: directory
-        recurse: yes
-      become: false
-      delegate_to: localhost
-      when: expire_days | default(0) | int <= 14
+  - name: Config Main Server - Create certificate and token directory for Local Host
+    ansible.builtin.file:
+      path: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}"
+      mode: '0755'
+      state: directory
+      recurse: yes
+    become: false
+    delegate_to: localhost
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - Generate certificates for db 
-      ansible.builtin.shell: 
-        cmd: "tctl auth sign --format=mongodb --host={{ ansible_default_ipv4.address }} --out={{ teleport_mongodb_cert_name }} --ttl={{ teleport_mongodb_cert_ttl }} --overwrite"
-        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MongoDB Servers - Generate certificates for db
+    ansible.builtin.shell:
+      cmd: "tctl auth sign --format=mongodb --host={{ ansible_default_ipv4.address }} --out={{ teleport_mongodb_cert_name }} --ttl={{ teleport_mongodb_cert_ttl }} --overwrite"
+      chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - Generate token for db
-      ansible.builtin.shell: 
-        cmd: "tctl tokens add --type=node,db --ttl=1h > {{ teleport_mongodb_cert_name }}.txt"
-        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MongoDB Servers - Generate token for db
+    ansible.builtin.shell:
+      cmd: "tctl tokens add --type={{ teleport_token_type }} --ttl=1h > {{ teleport_mongodb_cert_name }}.txt"
+      chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - Fletching cert files to localhost
-      ansible.builtin.fetch:
-        src: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}/{{ item }}"
-        dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/"
-        flat: true
-      with_items: 
-        - "{{ teleport_mongodb_cert_name }}.cas"
-        - "{{ teleport_mongodb_cert_name }}.crt"
-        - "{{ teleport_mongodb_cert_name }}.txt"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MongoDB Servers - Fletching cert files to localhost
+    ansible.builtin.fetch:
+      src: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}/{{ item }}"
+      dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/"
+      flat: true
+    with_items:
+    - "{{ teleport_mongodb_cert_name }}.cas"
+    - "{{ teleport_mongodb_cert_name }}.crt"
+    - "{{ teleport_mongodb_cert_name }}.txt"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - copy cert files to DB host
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/{{ item }}"
-        dest: "{{ teleport_mongodb_cert_dir }}"
-        owner: mongodb
-        group: mongodb
-        mode: '0600'
-      with_items: 
-        - "{{ teleport_mongodb_cert_name }}.cas"
-        - "{{ teleport_mongodb_cert_name }}.crt"
-        - "{{ teleport_mongodb_cert_name }}.txt"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MongoDB Servers - copy cert files to DB host
+    ansible.builtin.copy:
+      src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/{{ item }}"
+      dest: "{{ teleport_mongodb_cert_dir }}"
+      owner: mongodb
+      group: mongodb
+      mode: '0600'
+    with_items:
+    - "{{ teleport_mongodb_cert_name }}.cas"
+    - "{{ teleport_mongodb_cert_name }}.crt"
+    - "{{ teleport_mongodb_cert_name }}.txt"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - Modify teleport token file as it is needed
-      shell: 
-        cmd: cat "{{ teleport_mongodb_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
-        chdir: "{{ teleport_mongodb_cert_dir }}"
-      notify: Restart MongoDB service
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MongoDB Servers - Modify teleport token file as it is needed
+    shell:
+      cmd: cat "{{ teleport_mongodb_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
+      chdir: "{{ teleport_mongodb_cert_dir }}"
+    notify: restart mongodb
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MongoDB Servers - Create teleport config from template
-      template: 
-        src: teleport_all_db_conf.j2 
-        dest: "{{ teleport_config_path }}/teleport.yaml"
-        mode: 0644
-      notify: Restart teleport
+  - name: Configure MongoDB Servers - Create teleport config from template
+    template:
+      src: teleport_all_db_conf.j2
+      dest: "{{ teleport_config_path }}/teleport.yaml"
+      mode: 0644
+    notify: restart teleport

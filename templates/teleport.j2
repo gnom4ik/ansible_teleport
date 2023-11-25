@@ -13,6 +13,11 @@ teleport:
       extra_fields: [level, timestamp, component, caller]
   ca_pin: ""
   diag_addr: 172.23.0.138:3000
+#  storage:
+#    type: postgresql
+#    conn_string: postgresql://teleport:bBHDdbbdsssajahHSHd@lain-psql-teleport-01/teleport_backend?pool_max_conns=20
+#    audit_events_uri: postgresql://teleport:bBHDdbbdsssajahHSHd@lain-psql-teleport-01/teleport_auditlog
+#    audit_sessions_uri: 'gs://$teleport_sessions/records?projectID=infra-363306&credentialsPath=/root/.gs/sa.json'
 auth_service:
   enabled: "yes"
   listen_addr: 0.0.0.0:3025
@@ -69,25 +74,4 @@ app_service:
       product: grafana
       env: prod
       zone: spb5
-      type: app
-  - name: 'pwd'
-    uri: https://pwd.intrtl.com/
-    public_addr: ""
-    insecure_skip_verify: false
-    labels:
-      product: pwd
-      env: prod
-      zone: spb5
-      type: app
-  - name: 'gitlab'
-    uri: https://gitlab.intrtl.com/
-    public_addr: ""
-    insecure_skip_verify: false
-    rewrite:
-      headers:
-      - "X-JWT-Assertion: {{ '{{' }} internal.jwt {{ '}}' }}"
-    labels:
-      product: gitlab
-      env: prod
-      zone: lain
       type: app

@@ -1,44 +1,43 @@
----
- - name: Restart teleport
-   ansible.builtin.systemd:
-     name: teleport
-     enabled: true
-     daemon_reload: true
-     state: restarted
-   ignore_errors: true
+- name: restart teleport
+  ansible.builtin.systemd:
+    name: teleport
+    enabled: true
+    daemon_reload: true
+    state: restarted
+  ignore_errors: true
 
- - name: Start teleport
-   ansible.builtin.systemd:
-     name: teleport
-     enabled: true
-     daemon_reload: true
-     state: started
-   ignore_errors: true
+- name: start teleport
+  ansible.builtin.systemd:
+    name: teleport
+    enabled: true
+    daemon_reload: true
+    state: started
+  ignore_errors: true
 
- - name: Restart MongoDB service
-   ansible.builtin.systemd:
-     name: mongod
-     enabled: true
-     state: restarted 
-   ignore_errors: true
+- name: restart mongodb
+  ansible.builtin.systemd:
+    name: mongod
+    enabled: true
+    state: restarted
+  ignore_errors: true
 
- - name: Reload PostgreSQL service
-   ansible.builtin.systemd:
-     name: postgresql
-     enabled: true
-     state: reloaded 
-   ignore_errors: true
+- name: restart postgresql
+  ansible.builtin.systemd:
+    name: postgresql
+    enabled: true
+    state: restarted
+  ignore_errors: true
 
- - name: Restart MySQL service
-   ansible.builtin.systemd:
-     name: mysql
-     enabled: true
-     state: restarted 
-   ignore_errors: true
+- name: restart mysql
+  ansible.builtin.systemd:
+    name: mysql
+    enabled: true
+    state: restarted
+  ignore_errors: true
 
- - name: Restart MySQLD service
-   ansible.builtin.systemd:
-     name: mysqld
-     enabled: true
-     state: restarted 
-   ignore_errors: true
+- name: restart mysqld
+  ansible.builtin.systemd:
+    name: mysqld
+    enabled: true
+    state: restarted
+  ignore_errors: true

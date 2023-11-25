@@ -1,0 +1,54 @@
+---
+- name: Make sure the PostgreSQL teleport users are present
+  postgresql_user:
+    name: "{{item.name}}"
+    password: "{{ item.pass | default(omit) }}"
+    encrypted: "{{ item.encrypted | default(omit) }}"
+    port: "{{postgresql_port}}"
+    state: "{{ item.state | default('present') }}"
+    login_user: "{{ postgresql_admin_user}}"
+    role_attr_flags: "{{ item.role_attr_flags | default(omit) }}"
+  #no_log: true
+  become: true
+  become_user: "{{ postgresql_admin_user }}"
+  with_items: "{{postgresql_teleport_users}}"
+  when: postgresql_teleport_users is defined
+
+- name: Define databases list
+  set_fact:
+    databases: []
+  when: postgresql_databases is defined
+
+- name: Define users_with_databases list
+  set_fact:
+    users_with_databases: []
+  when: postgresql_databases is defined
+
+- name: Fill databases list
+  set_fact:
+    databases: "{{ databases + [item.name] }}"
+  with_items: "{{ postgresql_databases }}"
+  when: postgresql_databases is defined
+
+- name: Fill users_with_databases list
+  set_fact:
+    users_with_databases: "{{ users_with_databases + [item | combine({'db': databases})] }}"
+  with_items: "{{ postgresl_teleport_users_priveleges }}"
+  when: postgresl_teleport_users_priveleges is defined and databases is defined
+
+- name: Update the teleport user privileges
+  postgresql_privs:
+    db: "{{ item.1 | default(omit) }}"
+    privs: "{{ item.0.privs | default(omit) }}"
+    type: "{{ item.0.type | default(omit) }}"
+    objs: "{{ item.0.objs | default(omit) }}"
+    roles: "{{ item.0.roles | default(omit) }}"
+    role: "{{ item.0.role | default(omit) }}"
+    grant_option: "{{ item.0.grant_option | default(false) }}"
+    state: "{{ item.0.state | default(omit) }}"
+  become: yes
+  become_user: "{{ postgresql_admin_user }}"
+  with_subelements:
+  - "{{ users_with_databases }}"
+  - db
+  when: users_with_databases is defined

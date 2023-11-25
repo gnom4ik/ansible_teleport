@@ -1,101 +1,100 @@
----
-- name: Configure MySQL Servers - Starting configure psql db server
+- name: Configure MySQL Servers - Starting configure mysql db server
   block:
-    - name: Configure MySQL Servers - Create local psql certs directory
-      file:
-        path: "{{ teleport_mysql_cert_dir }}"
-        state: directory
-        owner: mysql
-        group: mysql
-        mode: '0755'
-        
-    - name: Configure MySQL Servers - Check the certificate for validity
-      community.crypto.x509_certificate_info:
-        path: "{{ teleport_mysql_cert_dir }}/{{ teleport_mysql_cert_name }}.crt"
-        valid_at:
-          two_days: "+2d0h"
-      register: cert
-      ignore_errors: true 
+  - name: Configure MySQL Servers - Create local mysql certs directory
+    file:
+      path: "{{ teleport_mysql_cert_dir }}"
+      state: directory
+      owner: mysql
+      group: mysql
+      mode: '0755'
 
-    - name: Configure MySQL Servers - How many days until cert expires
-      set_fact:
-        expire_days: "{{ (( cert.not_after | to_datetime('%Y%m%d%H%M%SZ')) - (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')) ).days }}"
-      ignore_errors: true 
+  - name: Configure MySQL Servers - Check the certificate for validity
+    community.crypto.x509_certificate_info:
+      path: "{{ teleport_mysql_cert_dir }}/{{ teleport_mysql_cert_name }}.crt"
+      valid_at:
+        two_days: "+2d0h"
+    register: cert
+    ignore_errors: true
 
-    - name: Config Main Server - Create certificate and token directory for MySQL DB Hosts
-      ansible.builtin.file:
-        path: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-        mode: '0755'
-        state: directory
-        recurse: true
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MySQL Servers - How many days until cert expires
+    set_fact:
+      expire_days: "{{ (( cert.not_after | to_datetime('%Y%m%d%H%M%SZ')) - (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ')) ).days }}"
+    ignore_errors: true
 
-    - name: Config Main Server - Create certificate and token directory for Local Host 
-      ansible.builtin.file:
-        path: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}"
-        mode: '0755'
-        state: directory
-        recurse: true
-      become: false
-      delegate_to: localhost
-      when: expire_days | default(0) | int <= 14
+  - name: Config Main Server - Create certificate and token directory for MySQL DB Hosts
+    ansible.builtin.file:
+      path: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+      mode: '0755'
+      state: directory
+      recurse: true
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - Generate certificates for db 
-      ansible.builtin.shell: 
-        cmd: "tctl auth sign --format=db --host={{ ansible_nodename }} --out={{ teleport_mysql_cert_name }} --ttl={{ teleport_mysql_cert_ttl }} --overwrite"
-        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Config Main Server - Create certificate and token directory for Local Host
+    ansible.builtin.file:
+      path: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}"
+      mode: '0755'
+      state: directory
+      recurse: true
+    become: false
+    delegate_to: localhost
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - Generate token for db
-      ansible.builtin.shell: 
-        cmd: "tctl tokens add --type=node,db --ttl=1h > {{ teleport_mysql_cert_name }}.txt"
-        chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MySQL Servers - Generate certificates for db
+    ansible.builtin.shell:
+      cmd: "tctl auth sign --format=db --host={{ ansible_nodename }} --out={{ teleport_mysql_cert_name }} --ttl={{ teleport_mysql_cert_ttl }} --overwrite"
+      chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - Fletching cert files to localhost
-      ansible.builtin.fetch:
-        src: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}/{{ item }}"
-        dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/"
-        flat: true
-      with_items: 
-        - "{{ teleport_mysql_cert_name }}.cas"
-        - "{{ teleport_mysql_cert_name }}.crt"
-        - "{{ teleport_mysql_cert_name }}.key"
-        - "{{ teleport_mysql_cert_name }}.txt"
-      delegate_to: "{{ teleport_server_name }}"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MySQL Servers - Generate token for db
+    ansible.builtin.shell:
+      cmd: "tctl tokens add --type={{ teleport_token_type }} --ttl=1h > {{ teleport_mysql_cert_name }}.txt"
+      chdir: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - copy cert files to DB host
-      ansible.builtin.copy:
-        src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/{{ item }}"
-        dest: "{{ teleport_mysql_cert_dir }}"
-        owner: mysql
-        group: mysql
-        mode: '0600'
-      with_items: 
-        - "{{ teleport_mysql_cert_name }}.cas"
-        - "{{ teleport_mysql_cert_name }}.crt"
-        - "{{ teleport_mysql_cert_name }}.key"
-        - "{{ teleport_mysql_cert_name }}.txt"
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MySQL Servers - Fletching cert files to localhost
+    ansible.builtin.fetch:
+      src: "{{ teleport_server_cert_dir }}/{{ ansible_nodename }}/{{ item }}"
+      dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/"
+      flat: true
+    with_items:
+    - "{{ teleport_mysql_cert_name }}.cas"
+    - "{{ teleport_mysql_cert_name }}.crt"
+    - "{{ teleport_mysql_cert_name }}.key"
+    - "{{ teleport_mysql_cert_name }}.txt"
+    delegate_to: "{{ teleport_server_name }}"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - Modify teleport token file as it is needed
-      shell: 
-        cmd: cat "{{ teleport_mysql_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
-        chdir: "{{ teleport_mysql_cert_dir }}"
-      notify: 
-        - Restart MySQL service
-        - Restart MySQLD service
-      when: expire_days | default(0) | int <= 14
+  - name: Configure MySQL Servers - copy cert files to DB host
+    ansible.builtin.copy:
+      src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}/{{ item }}"
+      dest: "{{ teleport_mysql_cert_dir }}"
+      owner: mysql
+      group: mysql
+      mode: '0600'
+    with_items:
+    - "{{ teleport_mysql_cert_name }}.cas"
+    - "{{ teleport_mysql_cert_name }}.crt"
+    - "{{ teleport_mysql_cert_name }}.key"
+    - "{{ teleport_mysql_cert_name }}.txt"
+    when: expire_days | default(0) | int <= 14
 
-    - name: Configure MySQL Servers - Create teleport config from template
-      template: 
-        src: teleport_all_db_conf.j2 
-        dest: "{{ teleport_config_path }}/teleport.yaml"
-        mode: 0644
-      notify: Restart teleport
+  - name: Configure MySQL Servers - Modify teleport token file as it is needed
+    shell:
+      cmd: cat "{{ teleport_mysql_cert_name }}".txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
+      chdir: "{{ teleport_mysql_cert_dir }}"
+    notify:
+    - restart mysql
+    - restart mysqld
+    when: expire_days | default(0) | int <= 14
+
+  - name: Configure MySQL Servers - Create teleport config from template
+    template:
+      src: teleport_all_db_conf.j2
+      dest: "{{ teleport_config_path }}/teleport.yaml"
+      mode: 0644
+    notify: restart teleport
 
 

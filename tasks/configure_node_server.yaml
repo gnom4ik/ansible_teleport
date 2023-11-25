@@ -1,0 +1,30 @@
+- name: Configure Node Servers - Starting configure mongodb db server
+  block:
+  - name: Configure Node Servers - Generate token
+    ansible.builtin.shell:
+      cmd: "tctl tokens add --type=node,app --ttl=1h > /tmp/{{ ansible_nodename }}.txt"
+    delegate_to: "{{ teleport_server_name }}"
+
+  - name: Configure Node Servers - Fletching token to localhost
+    ansible.builtin.fetch:
+      src: "/tmp/{{ ansible_nodename }}.txt"
+      dest: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}.txt"
+      flat: true
+    delegate_to: "{{ teleport_server_name }}"
+
+  - name: Configure Node Servers - copy token files to host
+    ansible.builtin.copy:
+      src: "{{ playbook_dir }}/tmp/{{ ansible_nodename }}.txt"
+      dest: "/tmp/token.txt"
+      mode: '0600'
+
+  - name: Configure Node Servers - Modify teleport token file as it is needed
+    shell:
+      cmd: cat /tmp/token.txt | grep token|grep -v Th|cut -d"=" -f2|cut -d" " -f1|sort -u > "{{ teleport_token_path }}/token"
+
+  - name: Configure Node Servers - Create teleport config from template
+    template:
+      src: teleport_node.j2
+      dest: "{{ teleport_config_path }}/teleport.yaml"
+      mode: 0644
+    notify: restart teleport

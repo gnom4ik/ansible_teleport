@@ -56,3 +56,6 @@ auth_service:
   enabled: "no"
 proxy_service:
   enabled: "no"
+{% if teleport_app_service is defined %}
+{{teleport_app_service|to_nice_yaml(indent=2)}}
+{% endif %}

@@ -1,9 +1,8 @@
----
 - name: Config Main Server - Starting main server configuration
   block:
-    - name: Config Main Server - Create main server config from template
-      template: 
-        src: teleport.j2 
-        dest: "{{ teleport_config_path }}/teleport.yaml"
-        mode: 0644
-      notify: Restart teleport
+  - name: Config Main Server - Create main server config from template
+    template:
+      src: teleport.j2
+      dest: "{{ teleport_config_path }}/teleport.yaml"
+      mode: 0644
+    notify: restart teleport

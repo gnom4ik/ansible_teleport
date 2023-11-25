@@ -1,0 +1,57 @@
+teleport:
+  nodename: {{ ansible_nodename }}
+  auth_servers:
+    - {{ teleport_server_domain }}:{{ teleport_server_port }}
+  auth_token: "{{ teleport_token_path }}/token"
+  data_dir: /var/lib/teleport
+  log:
+    output: /var/log/teleport/teleport.log
+    severity: INFO
+    format:
+      output: json
+      extra_fields: [level, timestamp, component, caller]
+  ca_pin: sha256:0568899b3444647a8427e02258de3dbdac15d9ddeca33a51f411055102ce8a0a
+  diag_addr: ""
+auth_service:
+  enabled: "no"
+ssh_service:
+  enabled: "yes"
+  labels:
+{% for key in teleport_labels %}
+      {{ key }}: {{ teleport_labels[key] }}
+{% endfor %}
+  enhanced_recording:
+    enabled: "no"
+  commands:
+  - name: hostname
+    command: [hostname]
+    period: 1m0s
+
+proxy_service:
+  enabled: "no"
+
+db_service:
+  enabled: "no"
+{% if teleport_app is defined %}
+app_service:
+  enabled: "yes"
+  debug_app: false
+  apps:
+{% for app in teleport_app %}
+  - name: "{{ app.name }}"
+    uri: "{{ app.uri }}"
+    public_addr: "{{ app.public_addr | default() }}"
+    insecure_skip_verify: {{ app.insecure_skip_verify }}
+{% if app.rewrite is defined %}
+    rewrite:
+      headers:
+{% for header in app.rewrite.headers %}
+      - "{{ header }}"
+{% endfor %}
+{% endif %}
+    labels:
+{% for key in app.labels %}
+      {{ key }}: {{ app.labels[key] }}
+{% endfor %}
+{% endfor %}
+{% endif %}
